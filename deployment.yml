@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wasm-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wasm-app
+  template:
+    metadata:
+      labels:
+        app: wasm-app
+    spec:
+      containers:
+        - name: wasm-app
+          image: your-dockerhub/wasm-app:latest   # <- zmień obraz
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"

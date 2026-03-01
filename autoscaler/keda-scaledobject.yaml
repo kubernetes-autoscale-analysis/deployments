@@ -1,0 +1,19 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: wasm-keda
+spec:
+  scaleTargetRef:
+    name: wasm-app
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server
+        metricName: http_requests_total
+        threshold: "100"
+        query: sum(rate(http_requests_total[1m]))
+
+
+        # wymaga: kubectl apply -f https://github.com/kedacore/keda/releases/latest/download/keda.yaml
