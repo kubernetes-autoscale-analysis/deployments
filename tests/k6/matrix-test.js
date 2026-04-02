@@ -10,12 +10,12 @@ const MATRIX_SIZE = __ENV.MATRIX_SIZE || 100;
 const BASE_URL = __ENV.BASE_URL || 'http://localhost';
 
 export default function () {
-    const url = `${BASE_URL}/matrix?matrixSize=${MATRIX_SIZE}`;
+    const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
     const res = http.get(url);
 
     check(res, {
         'is status 200': (r) => r.status === 200,
-        'has checksum': (r) => r.body.includes('checksum'),
+        'has result': (r) => r.body.includes('checksum'),
     });
 
     sleep(1);

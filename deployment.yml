@@ -20,11 +20,11 @@ spec:
         - name: wasm-app
           image: your-dockerhub/wasm-app:latest   # <- zmień obraz
           ports:
-            - containerPort: 8080
+            - containerPort: 8082
           resources:
             requests:
-              cpu: "500m"
-              memory: "512Mi"
+              cpu: "50m"
+              memory: "64Mi"
             limits:
               cpu: "1000m"
               memory: "1Gi"
