@@ -71,4 +71,4 @@ DURATION=$DURATION \
 MATRIX_SIZE=$MATRIX_SIZE \
 APP_TYPE="$APP_TYPE" \
 SCALING_TYPE="$SCALING_TYPE" \
-k6 run tests/k6/matrix-test.js
+k6 run tests/k6/matrix-test-kubernetes.js
