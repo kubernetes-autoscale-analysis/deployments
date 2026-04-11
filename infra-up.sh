@@ -30,18 +30,13 @@ cd vpa-git/vertical-pod-autoscaler
 ./hack/vpa-up.sh
 cd ../..
 
-echo "🔍 Instalacja Monitoring Stack (Prometheus + InfluxDB)..."
+echo "🔍 Instalacja Monitoring Stack (Prometheus + Grafana)..."
 kubectl create namespace monitoring || true
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
-helm repo add influxdata https://helm.influxdata.com/ || true
 helm repo update
 
 # Instalacja Prometheus Stack (Prometheus + Grafana)
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n monitoring
-
-# Instalacja InfluxDB v1 (lepsza kompatybilność z k6)
-helm upgrade --install influxdb influxdata/influxdb -n monitoring \
-  --set auth.enabled=false,persistence.enabled=false
 
 echo "✅ Infrastruktura podstawowa gotowa!"
 echo "Oczekiwanie na gotowość Ingress..."

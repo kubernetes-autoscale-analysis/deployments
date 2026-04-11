@@ -77,7 +77,7 @@ Zastosowanie:
 #### Stack monitoringowy:
 - Prometheus – zbieranie metryk
 - Grafana – wizualizacja
-- InfluxDB – baza danych time-series (dla k6)
+- Supabase – zewnętrzna baza danych dla wyników testów k6
 
 ---
 
