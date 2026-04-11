@@ -23,17 +23,23 @@ echo "📈 Instalacja KEDA..."
 kubectl apply --server-side --force-conflicts -f https://github.com/kedacore/keda/releases/download/v2.19.0/keda-2.19.0.yaml
 
 echo "📉 Instalacja VPA (Vertical Pod Autoscaler)..."
-if [ ! -d "vpa-git" ]; then
-  git clone https://github.com/kubernetes/autoscaler.git vpa-git
+if kubectl get pods -n kube-system | grep -q "vpa-recommender"; then
+  echo "✅ VPA jest już zainstalowane."
+else
+  echo "📥 Pobieranie i instalacja VPA..."
+  TEMP_VPA_DIR=$(mktemp -d)
+  git clone https://github.com/kubernetes/autoscaler.git "$TEMP_VPA_DIR"
+  cd "$TEMP_VPA_DIR/vertical-pod-autoscaler"
+  ./hack/vpa-up.sh
+  cd -
+  rm -rf "$TEMP_VPA_DIR"
 fi
-cd vpa-git/vertical-pod-autoscaler
-./hack/vpa-up.sh
-cd ../..
 
 echo "🔍 Instalacja Monitoring Stack (Prometheus + Grafana)..."
 kubectl create namespace monitoring || true
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
-helm repo update
+# Ciche repo update, aby nie blokować przy problemach sieciowych
+helm repo update prometheus-community || true
 
 # Instalacja Prometheus Stack (Prometheus + Grafana)
 helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n monitoring
@@ -43,6 +49,6 @@ echo "Oczekiwanie na gotowość Ingress..."
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=90s
+  --timeout=120s || echo "⚠️ Ingress nie jest jeszcze gotowy, ale instalacja trwa dalej..."
 
 echo "🚀 Środowisko jest gotowe do testów!"

@@ -13,12 +13,12 @@ spec:
         app: wasm-app
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
+        prometheus.io/port: "8082"
         prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: wasm-app
-          image: your-dockerhub/wasm-app:latest   # <- zmień obraz
+          image: DOCKER_IMAGE_PLACEHOLDER
           ports:
             - containerPort: 8082
           resources:
