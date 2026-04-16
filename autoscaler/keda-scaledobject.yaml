@@ -5,7 +5,7 @@ metadata:
 spec:
   scaleTargetRef:
     name: wasm-app
-  minReplicaCount: 1
+  minReplicaCount: 0
   maxReplicaCount: 10
   triggers:
     - type: prometheus
