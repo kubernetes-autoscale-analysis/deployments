@@ -68,7 +68,7 @@ export function handleSummary(data) {
     const payload = {
         rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
         zimne_uruchomienie: parseFloat(coldStartTime.toFixed(2)),
-        czas_odpowiedzi: parseFloat(data.metrics.http_req_duration.values.avg.toFixed(2)),
+        czas_odpowiedzi: parseFloat(data.metrics.http_req_duration.values['p(95)'].toFixed(2)),
         przepustowosc: Math.round(data.metrics.http_reqs.values.rate),
         max_zuzycie_cpu: null,
         max_zuzycie_ram: null,
