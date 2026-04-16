@@ -8,6 +8,7 @@ const SUPABASE_KEY = __ENV.SUPABASE_KEY || 'sb_secret_Arc46qK_KVhNe_vPRdQmqA_FAJ
 export const options = {
     vus: __ENV.VUS || 1,
     duration: __ENV.DURATION || '30s',
+    setupTimeout: '120s',
 };
 
 // --- PARAMETRY ŚRODOWISKA ---
@@ -16,27 +17,39 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost';
 const APP_TYPE = __ENV.APP_TYPE || 'Unknown';
 const SCALING_TYPE = __ENV.SCALING_TYPE || 'hpa';
 
-// Zmienne do śledzenia wydajności
-let firstSuccessTime = 0;
-const startTime = Date.now();
+// Pomiar zimnego startu (pierwsze zapytanie)
+export function setup() {
+    console.log(`⏳ Pierwsze zapytanie (Cold Start check) dla: ${APP_TYPE}...`);
+    const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
+    
+    const start = Date.now();
+    const res = http.get(url, { timeout: '60s' });
+    const end = Date.now();
 
-export default function () {
+    const isOk = check(res, {
+        'setup status 200': (r) => r.status === 200,
+        'setup has result': (r) => r.body && r.body.includes('checksum'),
+    });
+
+    const coldStartTime = isOk ? (end - start) : 0;
+    return { coldStartTime: coldStartTime };
+}
+
+export default function (data) {
     const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
     const res = http.get(url);
 
-    const isOk = check(res, {
+    check(res, {
         'is status 200': (r) => r.status === 200,
-        'has result': (r) => r.body.includes('checksum'),
+        'has result': (r) => r.body && r.body.includes('checksum'),
     });
-
-    if (isOk && firstSuccessTime === 0) {
-        firstSuccessTime = Date.now() - startTime;
-    }
 
     sleep(1);
 }
 
 export function handleSummary(data) {
+    const coldStartTime = data.setup_data ? data.setup_data.coldStartTime : 0;
+    
     console.log(`📊 Przygotowywanie raportu dla: ${APP_TYPE} (${SCALING_TYPE})`);
 
     const durationSeconds = Math.round(data.state.testRunDurationMs / 1000);
@@ -72,17 +85,15 @@ export function handleSummary(data) {
     const cpu_percent = rawMetrics.cpu_limit > 0 ? (rawMetrics.cpu_usage / rawMetrics.cpu_limit) * 100 : 0;
     const ram_percent = rawMetrics.ram_limit > 0 ? (rawMetrics.ram_usage / rawMetrics.ram_limit) * 100 : 0;
 
-    // 2. Mapowanie technologii
     const appTypeIds = {
         'C++': 1,
         'Kotlin Spring Boot': 2,
         'Kotlin WASM WASI': 3
     };
 
-    // 3. Przygotowanie wpisu do Supabase
     const payload = {
         rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
-        zimne_uruchomienie: parseFloat(firstSuccessTime.toFixed(2)),
+        zimne_uruchomienie: parseFloat(coldStartTime.toFixed(2)),
         czas_odpowiedzi: parseFloat(data.metrics.http_req_duration.values.avg.toFixed(2)),
         przepustowosc: Math.round(data.metrics.http_reqs.values.rate),
         max_zuzycie_cpu: parseFloat(cpu_percent.toFixed(2)),
