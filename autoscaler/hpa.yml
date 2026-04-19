@@ -16,5 +16,3 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
-
-          # wymaga: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
