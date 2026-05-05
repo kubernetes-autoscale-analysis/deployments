@@ -65,10 +65,11 @@ for i in {1..30}; do
 done
 
 # --- URUCHAMIANIE TESTU ---
-echo "🚀 Uruchamianie testu k6 (MatrixSize: $MATRIX_SIZE, VUs: $VUS, Duration: $DURATION)..."
+echo "🚀 Uruchamianie testu k6 (MatrixSize: $MATRIX_SIZE, VUs: $VUS, Duration: $DURATION, ScenarioID: $SCENARIO_ID)..."
 VUS=$VUS \
 DURATION=$DURATION \
 MATRIX_SIZE=$MATRIX_SIZE \
 APP_TYPE="$APP_TYPE" \
 SCALING_TYPE="$SCALING_TYPE" \
+SCENARIO_ID="$SCENARIO_ID" \
 k6 run tests/k6/matrix-test-kubernetes.js

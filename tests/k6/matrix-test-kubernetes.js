@@ -90,10 +90,11 @@ export function handleSummary(data) {
         'Kotlin Spring Boot': 2,
         'Kotlin WASM WASI': 3
     };
-
-    const payload = {
-        rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
-        zimne_uruchomienie: parseFloat(coldStartTime.toFixed(2)),
+const payload = {
+    rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
+    scenariusz_id: parseInt(__ENV.SCENARIO_ID) || null,
+    zimne_uruchomienie: parseFloat(coldStartTime.toFixed(2)),
+...
         czas_odpowiedzi: parseFloat(data.metrics.http_req_duration.values['p(95)'].toFixed(2)),
         przepustowosc: Math.round(data.metrics.http_reqs.values.rate),
         max_zuzycie_cpu: parseFloat(cpu_percent.toFixed(2)),
