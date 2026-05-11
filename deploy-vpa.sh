@@ -12,7 +12,13 @@ kubectl delete hpa wasm-hpa --ignore-not-found
 kubectl delete scaledobject wasm-keda --ignore-not-found
 
 echo "🚀 Deploying application with VPA (Tag: $TAG)..."
-sed "s|image: .*|image: $IMAGE|" deployment.yml | kubectl apply -f -
+# Dynamiczne obniżenie zasobów tylko dla VPA, aby wymusić jego działanie
+sed "s|image: .*|image: $IMAGE|" deployment.yml | \
+sed '/resources:/,/limits:/ s/cpu: ".*"/cpu: "20m"/' | \
+sed '/resources:/,/limits:/ s/memory: ".*"/memory: "32Mi"/' | \
+sed '/limits:/,/data:/ s/cpu: ".*"/cpu: "200m"/' | \
+sed '/limits:/,/data:/ s/memory: ".*"/memory: "128Mi"/' | \
+kubectl apply -f -
 kubectl apply -f service.yml
 kubectl apply -f ingress.yml
 kubectl apply -f autoscaler/vpa.yml

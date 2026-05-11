@@ -11,9 +11,9 @@ for TECH in "${TECHNOLOGIES[@]}"; do
 
   # B: Scalability (ID: 2)
   SCENARIO_ID=2
-  ./run-tests.sh 200 50 "5m"
+  ./run-tests.sh 200 50 "5m" "$SCENARIO_ID"
   
   # C: Spike (ID: 3)
   SCENARIO_ID=3
-  ./run-tests.sh 200 150 "3m"
+  ./run-tests.sh 200 150 "3m" "$SCENARIO_ID"
 done

@@ -11,6 +11,7 @@ for TECH in "${TECHNOLOGIES[@]}"; do
 
   # D: Soak & Adaptation (ID: 4)
   SCENARIO_ID=4
-  ./run-tests.sh 400 15 "15m"
-  ./run-tests.sh 200 30 "20m"
+  
+  ./run-tests.sh 400 15 "5m" "$SCENARIO_ID"
+  ./run-tests.sh 200 30 "7m" "$SCENARIO_ID"
 done

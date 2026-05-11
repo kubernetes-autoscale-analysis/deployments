@@ -7,6 +7,7 @@ set -e
 MATRIX_SIZE=${1:-100}
 VUS=${2:-10}
 DURATION=${3:-'1m'}
+SCENARIO_ID=${4:-0}
 
 # --- AUTO-DETEKCJA ŚRODOWISKA ---
 echo "🔍 Wykrywanie konfiguracji środowiska..."
@@ -63,6 +64,11 @@ for i in {1..30}; do
     fi
     sleep 1
 done
+
+# --- RESTART DLA ZIMNEGO STARTU ---
+echo "♻️ Restartowanie podów dla czystego pomiaru (Cold Start)..."
+kubectl rollout restart deployment wasm-app
+kubectl rollout status deployment wasm-app --timeout=90s
 
 # --- URUCHAMIANIE TESTU ---
 echo "🚀 Uruchamianie testu k6 (MatrixSize: $MATRIX_SIZE, VUs: $VUS, Duration: $DURATION, ScenarioID: $SCENARIO_ID)..."

@@ -12,14 +12,14 @@ for TECH in "${TECHNOLOGIES[@]}"; do
   # A: Baseline (ID: 1)
   SCENARIO_ID=1
   for SIZE in 100 200 500; do
-    ./run-tests.sh "$SIZE" 10 "2m"
+    ./run-tests.sh "$SIZE" 10 "2m" "$SCENARIO_ID"
   done
 
   # B: Ramp-up (ID: 2)
   SCENARIO_ID=2
-  ./run-tests.sh 200 100 "5m"
+  ./run-tests.sh 200 100 "5m" "$SCENARIO_ID"
 
   # C: Spike (ID: 3)
   SCENARIO_ID=3
-  ./run-tests.sh 200 200 "2m"
+  ./run-tests.sh 200 200 "2m" "$SCENARIO_ID"
 done

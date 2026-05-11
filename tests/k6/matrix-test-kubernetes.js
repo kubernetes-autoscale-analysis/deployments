@@ -55,18 +55,20 @@ export function handleSummary(data) {
     const durationSeconds = Math.round(data.state.testRunDurationMs / 1000);
     const endTime = Date.now();
     const startTimeIso = new Date(endTime - data.state.testRunDurationMs).toISOString();
+    const startTimeSeconds = Math.floor((endTime - data.state.testRunDurationMs) / 1000);
 
     // 1. Pobieranie metryk z Prometheusa
     const promUrl = 'http://localhost:9090/api/v1/query';
     const queries = {
-        cpu_usage: `max_over_time(sum(rate(container_cpu_usage_seconds_total{pod=~"wasm-app-.*", container!=""}[1m]))[${durationSeconds}s:1s])`,
-        cpu_limit: `max_over_time(sum(kube_pod_container_resource_limits{resource="cpu", pod=~"wasm-app-.*"})[${durationSeconds}s:1s])`,
-        ram_usage: `max_over_time(sum(container_memory_working_set_bytes{pod=~"wasm-app-.*", container!=""})[${durationSeconds}s:1s])`,
-        ram_limit: `max_over_time(sum(kube_pod_container_resource_limits{resource="memory", pod=~"wasm-app-.*"})[${durationSeconds}s:1s])`,
-        pods: `max_over_time(count(kube_pod_status_phase{phase="Running", pod=~"wasm-app-.*"})[${durationSeconds}s:1s])`
+        cpu_usage: `max_over_time(sum(irate(container_cpu_usage_seconds_total{pod=~"wasm-app-.*", container="wasm-app"}[30s]))[${durationSeconds}s:1s])`,
+        cpu_limit: `max(kube_pod_container_resource_limits{resource="cpu", pod=~"wasm-app-.*", container="wasm-app"})`,
+        ram_usage: `max_over_time(sum(container_memory_working_set_bytes{pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
+        ram_limit: `max(kube_pod_container_resource_limits{resource="memory", pod=~"wasm-app-.*", container="wasm-app"})`,
+        pods: `max_over_time(count(kube_pod_status_phase{phase="Running", pod=~"wasm-app-.*"})[${durationSeconds}s:1s])`,
+        restarts: `count(kube_pod_created{pod=~"wasm-app-.*"} > ${startTimeSeconds})`
     };
 
-    let rawMetrics = { cpu_usage: 0, cpu_limit: 0, ram_usage: 0, ram_limit: 0, pods: 0 };
+    let rawMetrics = { cpu_usage: 0, cpu_limit: 0, ram_usage: 0, ram_limit: 0, pods: 0, restarts: 0 };
 
     try {
         for (let key in queries) {
@@ -90,16 +92,20 @@ export function handleSummary(data) {
         'Kotlin Spring Boot': 2,
         'Kotlin WASM WASI': 3
     };
-const payload = {
-    rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
-    scenariusz_id: parseInt(__ENV.SCENARIO_ID) || null,
-    zimne_uruchomienie: parseFloat(coldStartTime.toFixed(2)),
-...
+
+    // Konwersja zimnego startu na sekundy (dla lepszej czytelności przy dużych wartościach)
+    const coldStartSeconds = parseFloat((coldStartTime / 1000).toFixed(3));
+
+    const payload = {
+        rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
+        scenariusz_id: parseInt(__ENV.SCENARIO_ID) || null,
+        zimne_uruchomienie: coldStartSeconds,
         czas_odpowiedzi: parseFloat(data.metrics.http_req_duration.values['p(95)'].toFixed(2)),
         przepustowosc: Math.round(data.metrics.http_reqs.values.rate),
         max_zuzycie_cpu: parseFloat(cpu_percent.toFixed(2)),
         max_zuzycie_ram: parseFloat(ram_percent.toFixed(2)),
         liczba_instancji_podow: Math.round(rawMetrics.pods),
+        liczba_restartow: Math.round(rawMetrics.restarts),
         rozmiar_macierzy: parseInt(MATRIX_SIZE),
         wirtualni_uzytkownicy: parseInt(__ENV.VUS || options.vus),
         czas_trwania_testu: durationSeconds,

@@ -35,11 +35,10 @@ CREATE TABLE pomiary_hpa (
     przepustowosc INTEGER,
     max_zuzycie_cpu DOUBLE PRECISION,
     max_zuzycie_ram DOUBLE PRECISION,
-    cpu_request DOUBLE PRECISION,
-    ram_request INTEGER,
     liczba_instancji_podow INTEGER,
     rozmiar_macierzy INTEGER,
     wirtualni_uzytkownicy INTEGER,
+    liczba_restartow INTEGER DEFAULT 0,
     czas_trwania_testu INTEGER,
     data_realizacji_testu TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
