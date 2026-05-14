@@ -1,16 +1,20 @@
-apiVersion: keda.sh/v1alpha1
-kind: ScaledObject
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
 metadata:
   name: wasm-keda
 spec:
+  hosts:
+    - wasm.local
   scaleTargetRef:
     name: wasm-app
-  minReplicaCount: 0
-  maxReplicaCount: 10
-  triggers:
-    - type: prometheus
-      metadata:
-        serverAddress: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
-        metricName: http_requests_total
-        threshold: "100"
-        query: sum(rate(http_requests_total[1m]))
+    kind: Deployment
+    apiVersion: apps/v1
+    service: wasm-service
+    port: 80
+  replicas:
+    min: 0
+    max: 10
+  scalingMetric:
+    requestRate:
+      targetValue: 15
+      window: 1m

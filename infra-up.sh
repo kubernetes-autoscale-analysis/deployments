@@ -22,6 +22,11 @@ kubectl patch deployment metrics-server -n kube-system --type='json' -p '[{"op":
 echo "📈 Instalacja KEDA..."
 kubectl apply --server-side --force-conflicts -f https://github.com/kedacore/keda/releases/download/v2.19.0/keda-2.19.0.yaml
 
+echo "🌐 Instalacja KEDA HTTP Add-on..."
+helm repo add kedacore https://kedacore.github.io/charts || true
+helm repo update kedacore || true
+helm upgrade --install http-add-on kedacore/keda-add-ons-http --namespace keda
+
 echo "📉 Instalacja VPA (Vertical Pod Autoscaler)..."
 if kubectl get pods -n kube-system | grep -q "vpa-recommender"; then
   echo "✅ VPA jest już zainstalowane."

@@ -16,20 +16,34 @@ const MATRIX_SIZE = __ENV.MATRIX_SIZE || 100;
 const BASE_URL = __ENV.BASE_URL || 'http://localhost';
 const APP_TYPE = __ENV.APP_TYPE || 'Unknown';
 const SCALING_TYPE = __ENV.SCALING_TYPE || 'hpa';
+const HTTP_HOST = __ENV.HTTP_HOST || '';
 
 // Pomiar zimnego startu (pierwsze zapytanie)
 export function setup() {
     console.log(`⏳ Pierwsze zapytanie (Cold Start check) dla: ${APP_TYPE}...`);
     const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
+    const params = HTTP_HOST ? { headers: { 'Host': HTTP_HOST }, timeout: '180s' } : { timeout: '180s' };
     
     const start = Date.now();
-    const res = http.get(url, { timeout: '60s' });
+    const res = http.get(url, params);
     const end = Date.now();
+
+    if (res.status !== 200) {
+        console.warn(`❌ Setup failed! URL: ${url}, Host: ${HTTP_HOST}, Status: ${res.status}, Error: ${res.error}`);
+    }
 
     const isOk = check(res, {
         'setup status 200': (r) => r.status === 200,
         'setup has result': (r) => r.body && r.body.includes('checksum'),
     });
+
+    if (!isOk) {
+        console.warn(`⚠️ Setup failed! Status: ${res.status}, Body: ${res.body ? res.body.substring(0, 100) : 'empty'}`);
+    }
+
+    if (res.headers['X-Keda-Http-Cold-Start'] === 'true') {
+        console.log(`❄️ Potwierdzono infrastrukturalny Cold Start (KEDA HTTP Header found)`);
+    }
 
     const coldStartTime = isOk ? (end - start) : 0;
     return { coldStartTime: coldStartTime };
@@ -37,7 +51,8 @@ export function setup() {
 
 export default function (data) {
     const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
-    const res = http.get(url);
+    const params = HTTP_HOST ? { headers: { 'Host': HTTP_HOST } } : {};
+    const res = http.get(url, params);
 
     check(res, {
         'is status 200': (r) => r.status === 200,
@@ -59,13 +74,15 @@ export function handleSummary(data) {
 
     // 1. Pobieranie metryk z Prometheusa
     const promUrl = 'http://localhost:9090/api/v1/query';
+    
+    // Zwiększamy zakres czasu dla limitów, aby złapać je nawet jeśli pody już zniknęły
     const queries = {
         cpu_usage: `max_over_time(sum(irate(container_cpu_usage_seconds_total{pod=~"wasm-app-.*", container="wasm-app"}[30s]))[${durationSeconds}s:1s])`,
-        cpu_limit: `max(kube_pod_container_resource_limits{resource="cpu", pod=~"wasm-app-.*", container="wasm-app"})`,
+        cpu_limit: `max_over_time(max(kube_pod_container_resource_limits{resource="cpu", pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
         ram_usage: `max_over_time(sum(container_memory_working_set_bytes{pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
-        ram_limit: `max(kube_pod_container_resource_limits{resource="memory", pod=~"wasm-app-.*", container="wasm-app"})`,
+        ram_limit: `max_over_time(max(kube_pod_container_resource_limits{resource="memory", pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
         pods: `max_over_time(count(kube_pod_status_phase{phase="Running", pod=~"wasm-app-.*"})[${durationSeconds}s:1s])`,
-        restarts: `count(kube_pod_created{pod=~"wasm-app-.*"} > ${startTimeSeconds})`
+        restarts: `max_over_time(count(kube_pod_created{pod=~"wasm-app-.*"} > ${startTimeSeconds})[${durationSeconds}s:1s])`
     };
 
     let rawMetrics = { cpu_usage: 0, cpu_limit: 0, ram_usage: 0, ram_limit: 0, pods: 0, restarts: 0 };
@@ -96,12 +113,21 @@ export function handleSummary(data) {
     // Konwersja zimnego startu na sekundy (dla lepszej czytelności przy dużych wartościach)
     const coldStartSeconds = parseFloat((coldStartTime / 1000).toFixed(3));
 
+    // Bezpieczne pobieranie metryk k6 (na wypadek gdyby żaden test nie przeszedł)
+    const p95_duration = (data.metrics.http_req_duration && data.metrics.http_req_duration.values) 
+        ? parseFloat(data.metrics.http_req_duration.values['p(95)'].toFixed(2)) 
+        : 0;
+    
+    const req_rate = (data.metrics.http_reqs && data.metrics.http_reqs.values)
+        ? Math.round(data.metrics.http_reqs.values.rate)
+        : 0;
+
     const payload = {
         rodzaj_aplikacji_id: appTypeIds[APP_TYPE] || null,
         scenariusz_id: parseInt(__ENV.SCENARIO_ID) || null,
         zimne_uruchomienie: coldStartSeconds,
-        czas_odpowiedzi: parseFloat(data.metrics.http_req_duration.values['p(95)'].toFixed(2)),
-        przepustowosc: Math.round(data.metrics.http_reqs.values.rate),
+        czas_odpowiedzi: p95_duration,
+        przepustowosc: req_rate,
         max_zuzycie_cpu: parseFloat(cpu_percent.toFixed(2)),
         max_zuzycie_ram: parseFloat(ram_percent.toFixed(2)),
         liczba_instancji_podow: Math.round(rawMetrics.pods),

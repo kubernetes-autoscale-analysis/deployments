@@ -13,13 +13,23 @@ for TECH in "${TECHNOLOGIES[@]}"; do
   SCENARIO_ID=1
   for SIZE in 100 200 500; do
     ./run-tests.sh "$SIZE" 10 "2m" "$SCENARIO_ID"
+    sleep 30
   done
+
+  echo "⏳ Oczekiwanie na schłodzenie środowiska przed kolejnym scenariuszem..."
+  sleep 60
 
   # B: Ramp-up (ID: 2)
   SCENARIO_ID=2
   ./run-tests.sh 200 100 "5m" "$SCENARIO_ID"
 
+  echo "⏳ Oczekiwanie na schłodzenie środowiska przed kolejnym scenariuszem..."
+  sleep 60
+
   # C: Spike (ID: 3)
   SCENARIO_ID=3
   ./run-tests.sh 200 200 "2m" "$SCENARIO_ID"
+
+  echo "⏳ Przerwa techniczna między technologiami..."
+  sleep 30
 done

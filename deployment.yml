@@ -21,10 +21,15 @@ spec:
           image: DOCKER_IMAGE_PLACEHOLDER
           ports:
             - containerPort: 8082
+          env:
+            - name: SERVER_PORT
+              value: "8082"
+            - name: PORT
+              value: "8082"
           resources:
             requests:
-              cpu: "50m"
-              memory: "64Mi"
+              cpu: "200m"
+              memory: "256Mi"
             limits:
               cpu: "1000m"
               memory: "1Gi"

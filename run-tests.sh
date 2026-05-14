@@ -27,7 +27,7 @@ if kubectl get hpa wasm-hpa >/dev/null 2>&1; then
   SCALING_TYPE="hpa"
 elif kubectl get vpa wasm-vpa >/dev/null 2>&1; then
   SCALING_TYPE="vpa"
-elif kubectl get scaledobject wasm-keda >/dev/null 2>&1; then
+elif kubectl get httpscaledobjects wasm-keda >/dev/null 2>&1; then
   SCALING_TYPE="keda"
 else
   SCALING_TYPE="serverless"
@@ -35,9 +35,15 @@ fi
 
 echo "✅ Wykryto: Technologia=$APP_TYPE, Skalowanie=$SCALING_TYPE"
 
+# --- HOST DLA KEDA HTTP ---
+if [ "$SCALING_TYPE" == "keda" ]; then
+  HTTP_HOST="wasm.local"
+else
+  HTTP_HOST=""
+fi
+
 # --- MONITORING TUNNEL ---
 echo "🔌 Otwieranie tunelu do Prometheusa..."
-# Bardziej odporny sposób na znalezienie serwisu Prometheusa
 PROM_SVC=$(kubectl get svc -n monitoring --no-headers | grep "\-prometheus-prometheus" | awk '{print $1}' | head -n 1)
 
 if [ -z "$PROM_SVC" ]; then
@@ -66,16 +72,26 @@ for i in {1..30}; do
 done
 
 # --- RESTART DLA ZIMNEGO STARTU ---
-echo "♻️ Restartowanie podów dla czystego pomiaru (Cold Start)..."
-kubectl rollout restart deployment wasm-app
-kubectl rollout status deployment wasm-app --timeout=90s
+if [ "$SCALING_TYPE" == "keda" ]; then
+  echo "♻️ Skalowanie do zera dla czystego pomiaru KEDA (Cold Start)..."
+  kubectl scale deployment wasm-app --replicas=0
+  echo "⏳ Oczekiwanie na usunięcie starych podów..."
+  kubectl wait --for=delete pod -l app=wasm-app --timeout=60s || true
+  sleep 10 # Dodatkowy bufor na synchronizację KEDA Interceptor
+else
+  echo "♻️ Restartowanie podów dla czystego pomiaru (Cold Start)..."
+  kubectl rollout restart deployment wasm-app
+  kubectl rollout status deployment wasm-app --timeout=90s
+fi
 
 # --- URUCHAMIANIE TESTU ---
 echo "🚀 Uruchamianie testu k6 (MatrixSize: $MATRIX_SIZE, VUs: $VUS, Duration: $DURATION, ScenarioID: $SCENARIO_ID)..."
-VUS=$VUS \
-DURATION=$DURATION \
-MATRIX_SIZE=$MATRIX_SIZE \
-APP_TYPE="$APP_TYPE" \
-SCALING_TYPE="$SCALING_TYPE" \
-SCENARIO_ID="$SCENARIO_ID" \
-k6 run tests/k6/matrix-test-kubernetes.js
+k6 run \
+  -e VUS=$VUS \
+  -e DURATION=$DURATION \
+  -e MATRIX_SIZE=$MATRIX_SIZE \
+  -e APP_TYPE="$APP_TYPE" \
+  -e SCALING_TYPE="$SCALING_TYPE" \
+  -e SCENARIO_ID="$SCENARIO_ID" \
+  -e HTTP_HOST="$HTTP_HOST" \
+  tests/k6/matrix-test-kubernetes.js

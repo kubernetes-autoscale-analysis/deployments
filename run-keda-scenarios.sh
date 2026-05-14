@@ -13,7 +13,13 @@ for TECH in "${TECHNOLOGIES[@]}"; do
   SCENARIO_ID=2
   ./run-tests.sh 200 50 "5m" "$SCENARIO_ID"
   
+  echo "⏳ Oczekiwanie na pełne wyczyszczenie środowiska przed kolejnym scenariuszem..."
+  sleep 60
+
   # C: Spike (ID: 3)
   SCENARIO_ID=3
   ./run-tests.sh 200 150 "3m" "$SCENARIO_ID"
+  
+  echo "⏳ Przerwa techniczna między technologiami..."
+  sleep 30
 done

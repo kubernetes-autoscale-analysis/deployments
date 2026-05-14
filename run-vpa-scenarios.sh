@@ -13,5 +13,12 @@ for TECH in "${TECHNOLOGIES[@]}"; do
   SCENARIO_ID=4
   
   ./run-tests.sh 400 15 "5m" "$SCENARIO_ID"
+  
+  echo "⏳ Przerwa na stabilizację zasobów..."
+  sleep 60
+  
   ./run-tests.sh 200 30 "7m" "$SCENARIO_ID"
+
+  echo "⏳ Przerwa techniczna między technologiami..."
+  sleep 30
 done
