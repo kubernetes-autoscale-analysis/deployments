@@ -5,6 +5,7 @@ metadata:
 spec:
   hosts:
     - wasm.local
+    - localhost
   scaleTargetRef:
     name: wasm-app
     kind: Deployment
