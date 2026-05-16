@@ -27,7 +27,7 @@ if kubectl get hpa wasm-hpa >/dev/null 2>&1; then
   SCALING_TYPE="hpa"
 elif kubectl get vpa wasm-vpa >/dev/null 2>&1; then
   SCALING_TYPE="vpa"
-elif kubectl get httpscaledobjects wasm-keda >/dev/null 2>&1; then
+elif kubectl get httpscaledobjects.http.keda.sh wasm-keda >/dev/null 2>&1; then
   SCALING_TYPE="keda"
 else
   SCALING_TYPE="serverless"

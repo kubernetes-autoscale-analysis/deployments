@@ -51,7 +51,10 @@ export function setup() {
 
 export default function (data) {
     const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
-    const params = HTTP_HOST ? { headers: { 'Host': HTTP_HOST } } : {};
+    const params = { timeout: '180s' };
+    if (HTTP_HOST) {
+        params.headers = { 'Host': HTTP_HOST };
+    }
     const res = http.get(url, params);
 
     check(res, {
@@ -77,12 +80,12 @@ export function handleSummary(data) {
     
     // Zwiększamy zakres czasu dla limitów, aby złapać je nawet jeśli pody już zniknęły
     const queries = {
-        cpu_usage: `max_over_time(sum(irate(container_cpu_usage_seconds_total{pod=~"wasm-app-.*", container="wasm-app"}[30s]))[${durationSeconds}s:1s])`,
+        cpu_usage: `sum(max_over_time(irate(container_cpu_usage_seconds_total{pod=~"wasm-app-.*", container="wasm-app"}[1m])[${durationSeconds}s:1s]))`,
         cpu_limit: `max_over_time(max(kube_pod_container_resource_limits{resource="cpu", pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
-        ram_usage: `max_over_time(sum(container_memory_working_set_bytes{pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
+        ram_usage: `sum(max_over_time(container_memory_working_set_bytes{pod=~"wasm-app-.*", container="wasm-app"}[${durationSeconds}s:1s]))`,
         ram_limit: `max_over_time(max(kube_pod_container_resource_limits{resource="memory", pod=~"wasm-app-.*", container="wasm-app"})[${durationSeconds}s:1s])`,
-        pods: `max_over_time(count(kube_pod_status_phase{phase="Running", pod=~"wasm-app-.*"})[${durationSeconds}s:1s])`,
-        restarts: `max_over_time(count(kube_pod_created{pod=~"wasm-app-.*"} > ${startTimeSeconds})[${durationSeconds}s:1s])`
+        pods: `max(kube_deployment_status_replicas_available{deployment="wasm-app"})`,
+        restarts: `count(kube_pod_created{pod=~"wasm-app-.*"} > ${startTimeSeconds})`
     };
 
     let rawMetrics = { cpu_usage: 0, cpu_limit: 0, ram_usage: 0, ram_limit: 0, pods: 0, restarts: 0 };
@@ -101,8 +104,19 @@ export function handleSummary(data) {
         console.error('❌ Błąd podczas odczytu z Prometheusa:', e);
     }
 
-    const cpu_percent = rawMetrics.cpu_limit > 0 ? (rawMetrics.cpu_usage / rawMetrics.cpu_limit) * 100 : 0;
-    const ram_percent = rawMetrics.ram_limit > 0 ? (rawMetrics.ram_usage / rawMetrics.ram_limit) * 100 : 0;
+    // Liczba instancji to zamierzona liczba replik (dla VPA zwykle 2)
+    const intendedReplicas = Math.round(rawMetrics.pods) || 2;
+    // Restart to liczba nowych podów stworzonych W TRAKCIE testu
+    const detectedRestarts = Math.max(0, Math.round(rawMetrics.restarts));
+
+    // Jeśli chcemy procent, to musimy uważać na sumowanie usage vs max limit
+    // Dla 2 replik, cpu_usage to suma szczytów obu podów. cpu_limit to max limit jednego poda.
+    // Poprawny procent obciążenia względem sumarycznego limitu:
+    const total_cpu_limit = rawMetrics.cpu_limit * intendedReplicas;
+    const total_ram_limit = rawMetrics.ram_limit * intendedReplicas;
+
+    const cpu_percent = total_cpu_limit > 0 ? (rawMetrics.cpu_usage / total_cpu_limit) * 100 : 0;
+    const ram_percent = total_ram_limit > 0 ? (rawMetrics.ram_usage / total_ram_limit) * 100 : 0;
 
     const appTypeIds = {
         'C++': 1,
@@ -130,8 +144,8 @@ export function handleSummary(data) {
         przepustowosc: req_rate,
         max_zuzycie_cpu: parseFloat(cpu_percent.toFixed(2)),
         max_zuzycie_ram: parseFloat(ram_percent.toFixed(2)),
-        liczba_instancji_podow: Math.round(rawMetrics.pods),
-        liczba_restartow: Math.round(rawMetrics.restarts),
+        liczba_instancji_podow: intendedReplicas,
+        liczba_restartow: detectedRestarts,
         rozmiar_macierzy: parseInt(MATRIX_SIZE),
         wirtualni_uzytkownicy: parseInt(__ENV.VUS || options.vus),
         czas_trwania_testu: durationSeconds,

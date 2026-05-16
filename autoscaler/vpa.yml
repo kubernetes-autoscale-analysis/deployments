@@ -8,4 +8,14 @@ spec:
     kind: Deployment
     name: wasm-app
   updatePolicy:
-    updateMode: "Auto"
+    updateMode: "Recreate"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: '*'
+        minAllowed:
+          cpu: "10m"
+          memory: "32Mi"
+        maxAllowed:
+          cpu: "800m"
+          memory: "512Mi"
+        controlledValues: RequestsOnly

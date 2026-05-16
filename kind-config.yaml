@@ -4,12 +4,6 @@ nodes:
 - role: control-plane
   kubeadmConfigPatches:
   - |
-    kind: KubeletConfiguration
-    systemReserved:
-      cpu: "4000m"
-      memory: "9Gi"
-    enforceNodeAllocatable: ["pods"]
-  - |
     kind: InitConfiguration
     nodeRegistration:
       kubeletExtraArgs:
@@ -21,3 +15,4 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
+- role: worker
