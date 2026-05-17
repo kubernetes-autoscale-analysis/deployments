@@ -72,17 +72,21 @@ for i in {1..30}; do
 done
 
 # --- RESTART DLA ZIMNEGO STARTU ---
+echo "♻️ Przygotowanie czystego środowiska (Cold Start)..."
+# Zapamiętujemy docelową liczbę replik
+TARGET_REPLICAS=$(kubectl get deployment wasm-app -o jsonpath='{.spec.replicas}')
+[ -z "$TARGET_REPLICAS" ] || [ "$TARGET_REPLICAS" -eq 0 ] && TARGET_REPLICAS=2
+
+echo "⏬ Skalowanie do zera..."
+kubectl scale deployment wasm-app --replicas=0
+kubectl wait --for=delete pod -l app=wasm-app --timeout=60s || true
+
 if [ "$SCALING_TYPE" == "keda" ]; then
-  echo "♻️ Skalowanie do zera dla czystego pomiaru KEDA (Cold Start)..."
-  kubectl scale deployment wasm-app --replicas=0
-  echo "⏳ Oczekiwanie na usunięcie starych podów..."
-  kubectl wait --for=delete pod -l app=wasm-app --timeout=60s || true
-  sleep 10 # Dodatkowy bufor na synchronizację KEDA Interceptor
-else
-  echo "♻️ Restartowanie podów dla czystego pomiaru (Cold Start)..."
-  kubectl rollout restart deployment wasm-app
-  kubectl rollout status deployment wasm-app --timeout=90s
+  sleep 10 # Bufor dla KEDA Interceptor
 fi
+
+echo "⏫ Skalowanie do $TARGET_REPLICAS i start pomiaru..."
+kubectl scale deployment wasm-app --replicas=$TARGET_REPLICAS
 
 # --- URUCHAMIANIE TESTU ---
 echo "🚀 Uruchamianie testu k6 (MatrixSize: $MATRIX_SIZE, VUs: $VUS, Duration: $DURATION, ScenarioID: $SCENARIO_ID)..."

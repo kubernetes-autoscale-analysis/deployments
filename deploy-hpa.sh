@@ -25,10 +25,25 @@ esac
 METRICS_PATH="/metrics"
 if [ "$TAG" == "kotlin-spring-boot" ]; then METRICS_PATH="/actuator/prometheus"; fi
 
+# DYNAMICZNA KONFIGURACJA ZASOBÓW POD HPA
+# Requests: 10m CPU / 32Mi RAM (wyjątek: 300m/256Mi dla Spring Boot)
+# Limits: 800m CPU / 512Mi RAM
+CPU_REQUEST="10m"
+MEM_REQUEST="32Mi"
+if [ "$TAG" == "kotlin-spring-boot" ]; then 
+  CPU_REQUEST="300m"
+  MEM_REQUEST="256Mi"
+fi
+
 sed "s|image: .*|image: $IMAGE|; \
      s|containerPort: .*|containerPort: $PORT|; \
      s|8082|$PORT|g; \
-     s|path: \"/metrics\"|path: \"$METRICS_PATH\"|g" deployment.yml | kubectl apply -f -
+     s|path: \"/metrics\"|path: \"$METRICS_PATH\"|g" deployment.yml | \
+sed "/requests:/,/limits:/ s/cpu: \".*\"/cpu: \"$CPU_REQUEST\"/" | \
+sed "/requests:/,/limits:/ s/memory: \".*\"/memory: \"$MEM_REQUEST\"/" | \
+sed '/limits:/,/^[[:space:]]*$/ s/cpu: ".*"/cpu: "800m"/' | \
+sed '/limits:/,/^[[:space:]]*$/ s/memory: ".*"/memory: "512Mi"/' | \
+kubectl apply -f -
 sed "s|targetPort: .*|targetPort: $PORT|" service.yml | kubectl apply -f -
 kubectl apply -f ingress.yml
 kubectl apply -f autoscaler/hpa.yml

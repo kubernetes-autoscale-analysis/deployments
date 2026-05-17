@@ -8,7 +8,7 @@ const SUPABASE_KEY = __ENV.SUPABASE_KEY || 'sb_secret_Arc46qK_KVhNe_vPRdQmqA_FAJ
 export const options = {
     vus: __ENV.VUS || 1,
     duration: __ENV.DURATION || '30s',
-    setupTimeout: '120s',
+    setupTimeout: '300s',
 };
 
 // --- PARAMETRY ŚRODOWISKA ---
@@ -18,34 +18,47 @@ const APP_TYPE = __ENV.APP_TYPE || 'Unknown';
 const SCALING_TYPE = __ENV.SCALING_TYPE || 'hpa';
 const HTTP_HOST = __ENV.HTTP_HOST || '';
 
-// Pomiar zimnego startu (pierwsze zapytanie)
+// Pomiar zimnego startu (pętla do skutku)
 export function setup() {
-    console.log(`⏳ Pierwsze zapytanie (Cold Start check) dla: ${APP_TYPE}...`);
+    console.log(`⏳ Oczekiwanie na dostępność aplikacji (${APP_TYPE})...`);
     const url = `${BASE_URL}/api/stress-test?matrixSize=${MATRIX_SIZE}`;
-    const params = HTTP_HOST ? { headers: { 'Host': HTTP_HOST }, timeout: '180s' } : { timeout: '180s' };
+    const params = HTTP_HOST ? { headers: { 'Host': HTTP_HOST }, timeout: '15s' } : { timeout: '15s' };
     
-    const start = Date.now();
-    const res = http.get(url, params);
-    const end = Date.now();
+    const startTime = Date.now();
+    let isOk = false;
+    let attempts = 0;
+    let lastRes = null;
 
-    if (res.status !== 200) {
-        console.warn(`❌ Setup failed! URL: ${url}, Host: ${HTTP_HOST}, Status: ${res.status}, Error: ${res.error}`);
+    // Próbujemy przez max 5 minut (zgodnie z setupTimeout: '300s')
+    while (Date.now() - startTime < 290000) {
+        attempts++;
+        try {
+            lastRes = http.get(url, params);
+            
+            if (lastRes.status === 200 && lastRes.body && lastRes.body.includes('checksum')) {
+                isOk = true;
+                break;
+            }
+            
+            if (attempts % 5 === 0) {
+                console.log(`... próba ${attempts}, status: ${lastRes.status}, czas: ${Math.round((Date.now() - startTime)/1000)}s`);
+            }
+        } catch (e) {
+            if (attempts % 5 === 0) console.log(`... próba ${attempts}, błąd połączenia, czas: ${Math.round((Date.now() - startTime)/1000)}s`);
+        }
+        
+        sleep(0.5); // 500ms przerwy między strzałami
     }
 
-    const isOk = check(res, {
-        'setup status 200': (r) => r.status === 200,
-        'setup has result': (r) => r.body && r.body.includes('checksum'),
-    });
+    const endTime = Date.now();
+    const coldStartTime = isOk ? (endTime - startTime) : 0;
 
-    if (!isOk) {
-        console.warn(`⚠️ Setup failed! Status: ${res.status}, Body: ${res.body ? res.body.substring(0, 100) : 'empty'}`);
+    if (isOk) {
+        console.log(`✅ Aplikacja gotowa po ${coldStartTime}ms (${attempts} prób)`);
+    } else {
+        console.error(`❌ Aplikacja nie wstała! Ostatni status: ${lastRes ? lastRes.status : 'brak'}`);
     }
 
-    if (res.headers['X-Keda-Http-Cold-Start'] === 'true') {
-        console.log(`❄️ Potwierdzono infrastrukturalny Cold Start (KEDA HTTP Header found)`);
-    }
-
-    const coldStartTime = isOk ? (end - start) : 0;
     return { coldStartTime: coldStartTime };
 }
 

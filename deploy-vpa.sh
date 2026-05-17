@@ -28,15 +28,22 @@ if [ "$TAG" == "kotlin-spring-boot" ]; then METRICS_PATH="/actuator/prometheus";
 
 # DYNAMICZNA KONFIGURACJA ZASOBÓW POD VPA
 # Replicas: 2 (gwarancja dostępności aplikacji podczas restartu VPA)
-# Requests: ustawione bardzo nisko (10m CPU / 32Mi RAM) - dzięki temu 2 repliki wejdą na zatłoczony węzeł
-# Limits: ustawione wysoko (800m CPU / 512Mi RAM) - daje przestrzeń aplikacji do testu obciążeniowego
+# Requests: 10m CPU / 32Mi RAM (wyjątek: 300m/256Mi dla Spring Boot)
+# Limits: 800m CPU / 512Mi RAM
+CPU_REQUEST="10m"
+MEM_REQUEST="32Mi"
+if [ "$TAG" == "kotlin-spring-boot" ]; then 
+  CPU_REQUEST="300m"
+  MEM_REQUEST="256Mi"
+fi
+
 sed "s|image: .*|image: $IMAGE|; \
      s|replicas: .*|replicas: 2|; \
      s|containerPort: .*|containerPort: $PORT|; \
      s|8082|$PORT|g; \
      s|path: \"/metrics\"|path: \"$METRICS_PATH\"|g" deployment.yml | \
-sed '/requests:/,/limits:/ s/cpu: ".*"/cpu: "10m"/' | \
-sed '/requests:/,/limits:/ s/memory: ".*"/memory: "32Mi"/' | \
+sed "/requests:/,/limits:/ s/cpu: \".*\"/cpu: \"$CPU_REQUEST\"/" | \
+sed "/requests:/,/limits:/ s/memory: \".*\"/memory: \"$MEM_REQUEST\"/" | \
 sed '/limits:/,/^[[:space:]]*$/ s/cpu: ".*"/cpu: "800m"/' | \
 sed '/limits:/,/^[[:space:]]*$/ s/memory: ".*"/memory: "512Mi"/' | \
 kubectl apply -f -
