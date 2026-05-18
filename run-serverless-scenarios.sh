@@ -2,9 +2,9 @@
 # Scenariusze testowe dla Serverless (Google Cloud Run)
 set -e
 
-URL_CPP=${1:-"https://your-cpp-app.a.run.app"}
-URL_KOTLIN_WASM=${2:-"https://your-kotlin-wasm-app.a.run.app"}
-URL_KOTLIN_JVM=${3:-"https://your-kotlin-jvm-app.a.run.app"}
+URL_CPP=${1:-"https://web-matrix-calculation-wasm-cpp.onrender.com"}
+URL_KOTLIN_WASM=${2:-"https://web-matrix-calculation-kotlin-wasm.onrender.com"}
+URL_KOTLIN_JVM=${3:-"https://web-matrix-calculation-kotlin-spring-boot.onrender.com"}
 REPETITIONS=${4:-1}
 
 run_cloud_test() {
